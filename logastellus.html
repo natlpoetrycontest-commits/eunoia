@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>eunoia — logastellus</title>
+
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Quill editor -->
+  <link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet">
+</head>
+<body class="editor-body">
+  <header class="editor-topbar">
+    <div class="editor-left">
+      <a class="home-link" href="index.html">← eunoia</a>
+      <span class="divider"></span>
+      <span class="page-title">logastellus</span>
+    </div>
+
+    <div class="editor-actions">
+      <button id="boldBtn" class="tool" title="Bold (Ctrl/Cmd+B)">B</button>
+      <button id="italicBtn" class="tool" title="Italic (Ctrl/Cmd+I)">I</button>
+      <button id="underlineBtn" class="tool" title="Underline (Ctrl/Cmd+U)">U</button>
+      <button id="clearFmt" class="tool" title="Clear formatting">Clear</button>
+      <button id="downloadDocx" class="tool primary" title="Download .docx">Download .docx</button>
+    </div>
+  </header>
+
+  <main class="editor-main">
+    <div id="docTitleWrap">
+      <input id="docTitle" placeholder="Title (optional)" />
+    </div>
+
+    <div id="quillToolbar" style="display:none;">
+      <!-- Hidden because we use custom toolbar buttons above -->
+    </div>
+
+    <div id="editor" aria-label="Writing editor"></div>
+  </main>
+
+  <div id="autosaveToast" class="toast">Saved</div>
+
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.4.0/html-docx.js"></script>
+  <script>
+    // ---------- Setup ----------
+    const DRAFT_KEY = 'eunoia_logastellus_draft_v1';
+
+    // Quill editor init (minimal toolbar)
+    const quill = new Quill('#editor', {
+      theme: 'snow',
+      modules: {
+        toolbar: false
+      }
+    });
+
+    // Restore draft if exists
+    function loadDraft(){
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if(!raw) return;
+      try{
+        const obj = JSON.parse(raw);
+        document.getElementById('docTitle').value = obj.title || '';
+        quill.setContents(obj.delta || [{insert:'\n'}]);
+      }catch(e){ console.warn('loadDraft error', e); }
+    }
+
+    // Save draft to localStorage
+    function saveDraft(silent=false){
+      const payload = {
+        title: document.getElementById('docTitle').value,
+        delta: quill.getContents()
+      };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+      showSavedToast();
+      if(!silent) console.log('Draft saved');
+    }
+
+    // Auto-save every 6 seconds (aggressive but safe)
+    let autosaveTimer = setInterval(()=> saveDraft(true), 6000);
+
+    // tiny saved toast
+    let toastTimer;
+    function showSavedToast(){
+      const t = document.getElementById('autosaveToast');
+      t.classList.add('visible');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(()=> t.classList.remove('visible'), 1400);
+    }
+
+    // keyboard shortcuts for basic formatting
+    document.addEventListener('keydown', (e)=>{
+      if((e.ctrlKey||e.metaKey) && !e.shiftKey){
+        if(e.key.toLowerCase()==='b'){ quill.format('bold', !quill.getFormat().bold); e.preventDefault(); saveDraft(true); }
+        if(e.key.toLowerCase()==='i'){ quill.format('italic', !quill.getFormat().italic); e.preventDefault(); saveDraft(true); }
+        if(e.key.toLowerCase()==='u'){ quill.format('underline', !quill.getFormat().underline); e.preventDefault(); saveDraft(true); }
+      }
+    });
+
+    // Action buttons
+    document.getElementById('boldBtn').addEventListener('click', ()=> { quill.format('bold', !quill.getFormat().bold); saveDraft(true); });
+    document.getElementById('italicBtn').addEventListener('click', ()=> { quill.format('italic', !quill.getFormat().italic); saveDraft(true); });
+    document.getElementById('underlineBtn').addEventListener('click', ()=> { quill.format('underline', !quill.getFormat().underline); saveDraft(true); });
+    document.getElementById('clearFmt').addEventListener('click', ()=> { const range = quill.getSelection(); if(range) quill.removeFormat(range.index, range.length); saveDraft(true); });
+
+    // Download .docx export using html-docx-js
+    document.getElementById('downloadDocx').addEventListener('click', ()=>{
+      const title = (document.getElementById('docTitle').value || 'manuscript').replace(/[\\/:*?"<>|]/g,'').trim();
+      // Build a simple HTML document for export
+      const html = `
+        <html><head><meta charset="utf-8"><title>${title}</title>
+        <style>body{font-family:Georgia,serif;padding:40px;color:#111} h1{font-size:24px;margin-bottom:10px}</style>
+        </head><body>
+        ${ title? `<h1>${escapeHtml(title)}</h1>` : '' }
+        ${ quill.root.innerHTML }
+        </body></html>
+      `;
+      try{
+        const converted = window.htmlDocx.asBlob(html);
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(converted);
+        a.download = title + '.docx';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }catch(err){
+        alert('Error exporting .docx — try again. ' + (err.message || err));
+      }
+    });
+
+    // util: escape
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(m){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]}); }
+
+    // onload
+    window.addEventListener('load', ()=> {
+      loadDraft();
+      // ensure editor is focused for instant writing
+      setTimeout(()=> quill.focus(), 350);
+    });
+
+    // also save on unload
+    window.addEventListener('beforeunload', saveDraft);
+  </script>
+</body>
+</html>
