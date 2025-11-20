@@ -1,0 +1,107 @@
+/* styles.css for eunoia (cherry wine theme)
+   Font: Poor Story loaded from CDN (fontsource) + fallbacks
+*/
+
+/* ----- Import Poor Story via a reliable CDN ----- */
+/* Source: Fontsource CDN (served woff2/woff) */
+@font-face {
+  font-family: "Poor Story";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("https://cdn.jsdelivr.net/fontsource/fonts/poor-story@latest/latin-400-normal.woff2") format("woff2"),
+       url("https://cdn.jsdelivr.net/fontsource/fonts/poor-story@latest/latin-400-normal.woff") format("woff");
+}
+
+/* color palette */
+:root{
+  --cherry: #4a0e0e;      /* main dark cherry red */
+  --cherry-deep: #3a0707;
+  --black-btn: #0b0b0b;   /* buttons */
+  --ivory: #f6efe8;       /* accents where needed */
+  --text-dark: #050505;
+  --maxw: 1100px;
+  --radius: 12px;
+  --shadow: 0 10px 30px rgba(0,0,0,0.28);
+  --site-font: "Poor Story", "Dancing Script", "Georgia", serif;
+}
+
+/* reset */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:var(--site-font);background:var(--cherry);color:var(--text-dark);-webkit-font-smoothing:antialiased}
+
+/* ---------- DASHBOARD (index.html) ---------- */
+.dash-body{display:flex;align-items:center;justify-content:center;height:100vh}
+.dash-center{text-align:center}
+.brand{
+  font-size:84px;
+  letter-spacing:6px;
+  color:#111;
+  margin:0 0 28px 0;
+  transform: translateY(-6px);
+}
+.dash-nav{display:flex;gap:22px;justify-content:center}
+.dash-btn{
+  display:inline-block;padding:18px 44px;background:var(--black-btn);color:var(--ivory);
+  border-radius:14px;text-decoration:none;font-weight:500;text-transform:lowercase;
+  box-shadow:var(--shadow);font-size:20px;
+}
+.dash-btn:hover{opacity:0.92;transform:translateY(-2px)}
+
+/* ---------- EDITOR (logastellus.html) ---------- */
+.editor-body{min-height:100vh;background:var(--cherry);color:var(--text-dark);display:flex;flex-direction:column}
+.editor-topbar{
+  position:fixed;left:0;right:0;top:0;height:64px;background:linear-gradient(90deg,var(--cherry),var(--cherry-deep));
+  display:flex;align-items:center;justify-content:space-between;padding:10px 18px;z-index:60;box-shadow:0 4px 18px rgba(0,0,0,0.18)
+}
+.editor-left{display:flex;align-items:center;gap:12px}
+.home-link{color:#fff;text-decoration:none;font-size:14px;background:transparent;padding:6px 10px;border-radius:8px}
+.divider{width:1px;height:26px;background:rgba(255,255,255,0.12);display:inline-block}
+.page-title{color:#fff;font-size:16px;padding-left:8px;text-transform:lowercase;opacity:0.95}
+
+.editor-actions{display:flex;align-items:center;gap:8px}
+.tool{
+  background:var(--black-btn);color:var(--ivory);border:none;padding:8px 12px;border-radius:8px;font-weight:700;
+  cursor:pointer;box-shadow:0 8px 18px rgba(0,0,0,0.18)
+}
+.tool:hover{opacity:0.95;transform:translateY(-1px)}
+.tool.primary{background:#221010;color:var(--ivory)}
+
+.editor-main{margin-top:80px;padding:28px;display:flex;flex-direction:column;align-items:center}
+#docTitleWrap{width:min(950px,92%);margin-bottom:18px}
+#docTitle{
+  width:100%;padding:12px 14px;border-radius:10px;border:none;background:#fff;font-family:inherit;font-size:20px;color:#111;
+  box-shadow:0 6px 20px rgba(0,0,0,0.06)
+}
+#editor{
+  width:min(950px,92%);min-height:64vh;background:#fff;padding:28px;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.12);
+  overflow:auto;font-family:Georgia,serif;font-size:16.5px;color:#111;line-height:1.7;
+}
+
+/* saved toast */
+.toast{
+  position:fixed;right:22px;bottom:22px;padding:10px 14px;border-radius:10px;background:rgba(0,0,0,0.8);
+  color:#fff;font-weight:600;opacity:0;transform:translateY(8px);transition:all .18s ease-in-out;z-index:100;
+}
+.toast.visible{opacity:1;transform:translateY(0)}
+
+/* ---------- POSTS (stellaviva.html) ---------- */
+.posts-body{min-height:100vh;background:var(--cherry);color:var(--text-dark);padding-bottom:60px}
+.posts-topbar{display:flex;align-items:center;gap:12px;padding:20px 30px}
+.posts-topbar .home-link{color:#fff;text-decoration:none;font-size:14px}
+.posts-title{color:#fff;margin:0 0 0 18px;text-transform:lowercase;font-size:20px}
+
+.posts-main{padding:28px;display:flex;justify-content:center}
+.post-card{width:min(900px,94%);background:#fff;border-radius:12px;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,0.12)}
+.post-head{margin:0 0 6px 0;font-size:26px}
+.post-meta{color:#666;margin:0 0 14px 0}
+.post-body{color:#222;line-height:1.7}
+
+/* small screens */
+@media (max-width:720px){
+  .brand{font-size:48px}
+  .dash-btn{padding:12px 18px;font-size:16px}
+  #editor{padding:18px}
+  #docTitle{font-size:18px}
+}
