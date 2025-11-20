@@ -3,16 +3,176 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>eunoia — home</title>
+  <title>eunoia</title>
   <link rel="stylesheet" href="styles.css" />
+  <!-- html-docx-js & jsPDF for exports -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.4.0/html-docx.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
-<body class="dash-body">
-  <main class="dash-center">
-    <h1 class="brand">eunoia</h1>
-    <nav class="dash-nav">
-      <a class="dash-btn" href="logastellus.html">logastellus</a>
-      <a class="dash-btn" href="stellaviva.html">stellaviva</a>
-    </nav>
+<body>
+  <!-- TOP NAV (SPA navigation) -->
+  <header class="topbar">
+    <div class="top-left">
+      <a class="brand" data-route="home">eunoia</a>
+      <nav class="tabs">
+        <button class="tabbtn" data-route="home">home</button>
+        <button class="tabbtn" data-route="projects">logastellus</button>
+        <button class="tabbtn" data-route="posts">stellaviva</button>
+        <button class="tabbtn" data-route="melomanie">melomanie</button>
+      </nav>
+    </div>
+    <div class="top-right">
+      <span id="saveIndicator" class="save-ind">saved</span>
+      <button id="downloadDocxBtn" class="mini">Download .docx</button>
+      <button id="downloadPdfBtn" class="mini">Download .pdf</button>
+    </div>
+  </header>
+
+  <!-- MAIN SPA VIEWS -->
+  <main id="app">
+    <!-- HOME / DASHBOARD -->
+    <section id="view-home" class="view">
+      <div class="dash-center">
+        <h1 class="dash-title">eunoia</h1>
+        <div class="dash-actions">
+          <button class="dash-cta" data-route="projects">logastellus</button>
+          <button class="dash-cta" data-route="posts">stellaviva</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROJECTS / LOGASTELLUS DASH (PROJECT CARDS) -->
+    <section id="view-projects" class="view hidden">
+      <div class="projects-header">
+        <h2>logastellus</h2>
+        <div class="proj-controls">
+          <input id="newProjectTitle" placeholder="New project title" />
+          <button id="createProjectBtn">+ New Project</button>
+        </div>
+      </div>
+
+      <div id="projectsGrid" class="projects-grid"></div>
+
+      <div class="projects-footer">
+        <small>Projects are saved locally to this browser. Later we can connect cloud save (Firebase).</small>
+      </div>
+    </section>
+
+    <!-- EDITOR VIEW (single editor instance; loads project content) -->
+    <section id="view-editor" class="view hidden">
+      <div class="editor-wrap">
+        <aside class="editor-left-pane">
+          <button id="backToProjects" class="ghost">← back</button>
+          <div class="meta">
+            <input id="projectTitleInput" placeholder="Untitled project" />
+            <div class="meta-row">
+              <small id="projectUpdated">Last saved: —</small>
+              <button id="renameProjectBtn" class="ghost">Rename</button>
+              <button id="deleteProjectBtn" class="danger">Delete</button>
+            </div>
+          </div>
+
+          <div class="project-list-mini">
+            <h4>Your projects</h4>
+            <div id="miniProjects"></div>
+          </div>
+        </aside>
+
+        <section class="editor-mainpane">
+          <!-- FIXED TOOLBAR -->
+          <div class="toolbar" id="toolbar">
+            <!-- basic formatting -->
+            <select id="fontSize">
+              <option value="">Size</option>
+              <option value="14px">14</option>
+              <option value="16px" selected>16</option>
+              <option value="18px">18</option>
+              <option value="20px">20</option>
+              <option value="24px">24</option>
+              <option value="32px">32</option>
+            </select>
+
+            <button class="tool" data-cmd="bold"><b>B</b></button>
+            <button class="tool" data-cmd="italic"><i>I</i></button>
+            <button class="tool" data-cmd="underline"><u>U</u></button>
+            <button class="tool" data-cmd="strike"><s>S</s></button>
+
+            <button class="tool" data-cmd="insertUnorderedList">• List</button>
+            <button class="tool" data-cmd="insertOrderedList">1. List</button>
+
+            <select id="heading">
+              <option value="">Normal</option>
+              <option value="h1">Heading 1</option>
+              <option value="h2">Heading 2</option>
+              <option value="h3">Heading 3</option>
+            </select>
+
+            <select id="align">
+              <option value="">Align</option>
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+              <option value="justify">Justify</option>
+            </select>
+
+            <input type="color" id="fontColor" title="Text color" />
+            <input type="color" id="highlightColor" title="Highlight color" />
+
+            <button class="tool" data-cmd="undo">↶</button>
+            <button class="tool" data-cmd="redo">↷</button>
+
+            <button class="tool" data-cmd="insertHr">—</button>
+            <button class="tool" data-cmd="insertImage">Image</button>
+          </div>
+
+          <!-- the editable document -->
+          <div id="editorRoot" contenteditable="true" class="editorRoot" role="textbox" aria-multiline="true"></div>
+        </section>
+      </div>
+    </section>
+
+    <!-- POSTS / STELLAVIVA -->
+    <section id="view-posts" class="view hidden">
+      <div class="posts-wrap">
+        <h2>stellaviva</h2>
+        <article class="post-card">
+          <h3>Welcome to Stellaviva</h3>
+          <p class="meta">A space for thoughts on writing, process, and the rituals that help us create.</p>
+          <div class="post-body">
+            <p>Welcome — this placeholder is your first post. When you're ready we can add a small admin workflow to publish editor content as blog posts.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- MELOMANIE (Spotify) -->
+    <section id="view-melomanie" class="view hidden">
+      <div class="melomanie-wrap">
+        <h2>melomanie</h2>
+        <p class="meta">Paste a Spotify embed link (or playlist URI) below and press Load. The player stays active while you use the editor.</p>
+        <input id="spotifyUrl" placeholder="https://open.spotify.com/playlist/..." />
+        <div class="melomanie-controls">
+          <button id="loadSpotify">Load playlist</button>
+          <button id="openSmallPlayer">Open floating player</button>
+        </div>
+
+        <div class="spotify-container">
+          <!-- persistent iframe — stays in DOM so playback continues -->
+          <iframe id="spotifyPlayer" src="" frameborder="0" allow="encrypted-media" allowtransparency="true"></iframe>
+        </div>
+      </div>
+    </section>
   </main>
+
+  <!-- floating mini-player (optional) -->
+  <div id="floatingPlayer" class="floating hidden">
+    <div class="float-header">melomanie <button id="closeFloat" class="x">✕</button></div>
+    <iframe id="spotifyFloat" src="" frameborder="0" allow="encrypted-media"></iframe>
+  </div>
+
+  <!-- small utilities -->
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js"></script>
 </body>
 </html>
