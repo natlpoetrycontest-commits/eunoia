@@ -1,42 +1,41 @@
-// eunoia SPA app.js
-// Projects + editor + toolbar + spotify + export
-// Save files: index.html, styles.css, app.js in same folder.
+/* eunoia app.js — upgraded
+   Features: SPA routing, projects, editor (google-docs style page),
+   headings outline, sticky notes, Reverie (characters + plots per project),
+   exports .docx/.pdf, Spotify embed, autosave per project.
+*/
 
-// ---------- Utilities ----------
-function qs(sel){ return document.querySelector(sel); }
-function qsa(sel){ return Array.from(document.querySelectorAll(sel)); }
-function uid(){ return 'p_' + Math.random().toString(36).slice(2,10); }
-function nowStr(){ return new Date().toLocaleString(); }
-function toast(msg){ const t=qs('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1400); }
+// ---------- small helpers ----------
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+const uid = () => 'id_' + Math.random().toString(36).slice(2,9);
+const toast = (m) => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1400); };
 
-// ---------- Routing (simple) ----------
-const routes = ['home','projects','editor','posts','melomanie'];
+// ---------- routing ----------
+const routes = ['home','projects','editor','reverie','posts','melomanie'];
 function showRoute(name){
-  routes.forEach(r=> qs('#view-'+r).classList.add('hidden'));
-  qs('#view-'+name).classList.remove('hidden');
-  qsa('.tabbtn').forEach(b=> b.classList.toggle('active', b.dataset.route===name));
-  // keep spotify iframe loaded (stays in DOM) so music continues
+  routes.forEach(r=> { const el = $('#view-'+r); if(el) el.classList.add('hidden'); });
+  const target = $('#view-'+name);
+  if(target) target.classList.remove('hidden');
+  $$('.tabbtn').forEach(b => b.classList.toggle('active', b.dataset.route===name));
 }
-qsa('.tabbtn').forEach(btn=> btn.addEventListener('click', e=> showRoute(btn.dataset.route)));
-qsa('[data-route]').forEach(el=> el.addEventListener('click', e=> showRoute(el.dataset.route)));
+$$('.tabbtn').forEach(b => b.addEventListener('click', ()=> showRoute(b.dataset.route)));
+$$('[data-route]').forEach(el=> el.addEventListener('click', ()=> showRoute(el.dataset.route)));
 
-// ---------- Project storage ----------
-const PROJECTS_KEY = 'eunoia_projects_v1';
-function loadProjects(){
-  const raw = localStorage.getItem(PROJECTS_KEY);
-  try{ return raw ? JSON.parse(raw) : []; } catch(e){ return []; }
-}
+// ---------- storage keys ----------
+const PROJECTS_KEY = 'eunoia_projects_v2';
+const PROJ_PREFIX = 'eunoia_proj_v2_'; // + id
+
+// ---------- projects functions ----------
+function loadProjects(){ try{ return JSON.parse(localStorage.getItem(PROJECTS_KEY)) || []; }catch(e){return [];} }
 function saveProjects(list){ localStorage.setItem(PROJECTS_KEY, JSON.stringify(list)); }
-function getProjectKey(id){ return 'eunoia_proj_' + id; }
+function saveProjectContent(id, data){ localStorage.setItem(PROJ_PREFIX + id, JSON.stringify(data)); }
+function loadProjectContent(id){ try{ return JSON.parse(localStorage.getItem(PROJ_PREFIX + id)) || null; }catch(e){return null;} }
 
-// ---------- Render project cards ----------
+// render grid & mini list
 function renderProjectsGrid(){
-  const grid = qs('#projectsGrid'); grid.innerHTML='';
+  const grid = $('#projectsGrid'); grid.innerHTML = '';
   const projects = loadProjects();
-  if(projects.length===0){
-    grid.innerHTML = '<p style="color:#fff">No projects yet — create one above.</p>';
-    return;
-  }
+  if(projects.length===0){ grid.innerHTML = '<p style="color:#fff">No projects yet — create one above.</p>'; return; }
   projects.forEach(p=>{
     const card = document.createElement('div'); card.className='project-card';
     card.innerHTML = `<h4>${escapeHtml(p.title)}</h4><p>Updated: ${p.updated}</p>`;
@@ -46,235 +45,347 @@ function renderProjectsGrid(){
   renderMiniProjects();
 }
 function renderMiniProjects(){
-  const mini = qs('#miniProjects'); mini.innerHTML = '';
+  const mini = $('#miniProjects'); if(!mini) return; mini.innerHTML='';
   loadProjects().forEach(p=>{
     const el = document.createElement('div'); el.className='project-card-mini';
-    el.style.marginBottom='8px';
+    el.style.background='#fff';
+    el.style.padding='8px'; el.style.borderRadius='8px'; el.style.marginBottom='8px';
     el.innerHTML = `<strong style="color:#111">${escapeHtml(p.title)}</strong><div style="font-size:12px;color:#333">${p.updated}</div>`;
     el.addEventListener('click', ()=> openProject(p.id));
     mini.appendChild(el);
   });
 }
 
-// ---------- Create project ----------
-qs('#createProjectBtn').addEventListener('click', ()=>{
-  const title = qs('#newProjectTitle').value.trim() || 'Untitled';
+// create project
+$('#createProjectBtn').addEventListener('click', ()=>{
+  const title = $('#newProjectTitle').value.trim() || 'Untitled';
   const id = uid();
   const projects = loadProjects();
-  const obj = {id, title, updated: nowStr()};
-  projects.unshift(obj);
+  projects.unshift({id, title, updated: new Date().toLocaleString()});
   saveProjects(projects);
-  localStorage.setItem(getProjectKey(id), JSON.stringify({title, content:'<p></p>'}));
-  qs('#newProjectTitle').value='';
+  saveProjectContent(id, {title, content: '<h1>Start</h1><p></p>', notes: [], characters: [], plots: []});
+  $('#newProjectTitle').value='';
   renderProjectsGrid();
-  toast('Project created');
   openProject(id);
+  toast('Project created');
 });
 
-// ---------- Open project (load into editor) ----------
+// open project -> load into editor
 let currentProjectId = null;
 function openProject(id){
-  const raw = localStorage.getItem(getProjectKey(id));
-  let data = {title:'Untitled', content:'<p></p>'};
-  if(raw) try{ data = JSON.parse(raw); }catch(e){}
+  const data = loadProjectContent(id) || {title:'Untitled', content:'<h1>Start</h1><p></p>', notes:[], characters:[], plots:[]};
   currentProjectId = id;
-  qs('#projectTitleInput').value = data.title || 'Untitled';
-  qs('#editorRoot').innerHTML = data.content || '<p></p>';
-  qs('#projectUpdated').textContent = 'Last saved: ' + (loadProjects().find(p=>p.id===id)?.updated || '—');
+  $('#projectTitleInput').value = data.title || 'Untitled';
+  $('#docCanvas').innerHTML = data.content || '<p></p>';
+  renderNotesList();
+  renderCharactersGrid();
+  renderPlotsGrid();
+  updateProjectUpdated();
+  generateTOC();
   showRoute('editor');
-  highlightMiniCurrent();
+  // focus editor
+  setTimeout(()=> $('#docCanvas').focus(), 200);
 }
+$('#backToProjects').addEventListener('click', ()=> showRoute('projects'));
 
-// mini panel highlight
-function highlightMiniCurrent(){
-  qsa('#miniProjects .project-card-mini').forEach(el=> el.style.opacity=1);
-}
+// rename effect on input auto-saves title
+$('#projectTitleInput').addEventListener('input', ()=> saveNow(true));
 
-// ---------- Rename / delete ----------
-qs('#renameProjectBtn').addEventListener('click', ()=>{
+// delete project (simple)
+$('#deleteProjectBtn')?.addEventListener('click', ()=> {
   if(!currentProjectId) return toast('Open a project first');
-  const newTitle = qs('#projectTitleInput').value.trim() || 'Untitled';
-  const projects = loadProjects().map(p=> p.id===currentProjectId ? {...p, title:newTitle, updated: nowStr()} : p);
+  if(!confirm('Delete this project?')) return;
+  const projects = loadProjects().filter(p=> p.id !== currentProjectId);
   saveProjects(projects);
-  // update stored content title too
-  const raw = localStorage.getItem(getProjectKey(currentProjectId));
-  if(raw) { const d = JSON.parse(raw); d.title=newTitle; localStorage.setItem(getProjectKey(currentProjectId), JSON.stringify(d)); }
-  renderProjectsGrid();
-  toast('Renamed');
-  qs('#projectUpdated').textContent = 'Last saved: ' + nowStr();
-});
-
-qs('#deleteProjectBtn').addEventListener('click', ()=>{
-  if(!currentProjectId) return;
-  if(!confirm('Delete this project? This cannot be undone.')) return;
-  let projects = loadProjects().filter(p=> p.id!==currentProjectId);
-  saveProjects(projects);
-  localStorage.removeItem(getProjectKey(currentProjectId));
+  localStorage.removeItem(PROJ_PREFIX + currentProjectId);
   currentProjectId = null;
   renderProjectsGrid();
   showRoute('projects');
   toast('Deleted');
 });
 
-// ---------- Tiny helper escape ----------
-function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]); }
-
-// ---------- Editor toolbar actions (uses document.execCommand for simplicity) ----------
-function exec(cmd, val=null){
-  document.execCommand(cmd, false, val);
-  saveNow(true);
-}
-
-qsa('.tool').forEach(btn => {
-  btn.addEventListener('click', ()=> {
-    const cmd = btn.dataset.cmd;
-    if(cmd==='insertHr'){ exec('insertHorizontalRule'); }
-    else if(cmd==='insertImage'){ const url = prompt('Image URL:'); if(url) exec('insertImage', url); }
-    else exec(cmd);
-  });
-});
-
-qs('#fontSize').addEventListener('change', (e)=>{
-  const v = e.target.value;
-  if(!v) return;
-  exec('fontSize', 7); // set a temp size
-  // adjust actual font size by finding the font element
-  const el = document.getSelection().anchorNode.parentElement;
-  if(el) el.style.fontSize = v;
-  e.target.value = '';
-});
-qs('#heading').addEventListener('change', (e)=>{
-  const v = e.target.value;
-  if(!v) return exec('formatBlock', v);
-  exec('formatBlock', 'p');
-});
-qs('#align').addEventListener('change', (e)=> {
-  const v = e.target.value;
-  if(!v) return;
-  exec('justify' + (v==='left'?'Left': v==='right'?'Right': v==='center'?'Center':'Full'));
-  e.target.value = '';
-});
-qs('#fontColor').addEventListener('change', e=> exec('foreColor', e.target.value));
-qs('#highlightColor').addEventListener('change', e=> exec('hiliteColor', e.target.value));
-
-// undo/redo handled by exec commands above via data-cmd
-
-// ensure Enter creates paragraphs (browser default usually does this in contenteditable)
-// to ensure Tab creates real indent (tab -> 2 em)
-qs('#editorRoot').addEventListener('keydown', (e)=>{
-  if(e.key === 'Tab'){ e.preventDefault();
-    // insert two non-breaking spaces
-    document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;');
-  }
-});
-
-// ---------- Autosave per project ----------
+// ---------- autosave per project ----------
 let saveTimer;
 function saveNow(silent=false){
   if(!currentProjectId) return;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(()=>{
-    const projects = loadProjects().map(p=> p.id===currentProjectId ? {...p, title: qs('#projectTitleInput').value || p.title, updated: nowStr()} : p);
+    const projects = loadProjects().map(p=> p.id===currentProjectId ? {...p, title: $('#projectTitleInput').value || p.title, updated: new Date().toLocaleString()} : p);
     saveProjects(projects);
-    // save project content
-    const data = { title: qs('#projectTitleInput').value || 'Untitled', content: qs('#editorRoot').innerHTML };
-    localStorage.setItem(getProjectKey(currentProjectId), JSON.stringify(data));
-    qs('#saveIndicator').textContent = 'saved';
+    // notes/characters/plots
+    const existing = loadProjectContent(currentProjectId) || {title: $('#projectTitleInput').value || 'Untitled', content:'', notes:[], characters:[], plots:[]};
+    existing.title = $('#projectTitleInput').value || existing.title;
+    existing.content = $('#docCanvas').innerHTML;
+    // notes, characters, plots are updated in their own flows (so load existing and keep)
+    saveProjectContent(currentProjectId, existing);
+    $('#saveIndicator').textContent = 'saved';
     if(!silent) toast('Saved');
-    qs('#projectUpdated').textContent = 'Last saved: ' + nowStr();
-  }, 350);
+    $('#projectUpdated').textContent = 'Last saved: ' + new Date().toLocaleString();
+    generateTOC();
+  }, 450);
 }
-// call save on input
-['input','keyup','paste','blur'].forEach(evt=> qs('#editorRoot').addEventListener(evt, ()=> saveNow(true)));
-qs('#projectTitleInput').addEventListener('input', ()=> saveNow(true));
-
-// also autosave every 6s for safety
+['input','keyup','paste','blur'].forEach(evt => $('#docCanvas').addEventListener(evt, ()=> saveNow(true)));
 setInterval(()=> saveNow(true), 6000);
 
-// ---------- Download .docx (html-docx-js) ----------
-qs('#downloadDocxBtn').addEventListener('click', ()=>{
-  if(!currentProjectId){ toast('Open a project first'); return; }
-  const title = (qs('#projectTitleInput').value || 'manuscript').replace(/[\\/:*?"<>|]/g,'').trim();
-  const html = `<html><head><meta charset="utf-8"><title>${title}</title>
-    <style>body{font-family:Georgia,serif;padding:40px;color:#111} h1{font-size:22px}</style>
-    </head><body>${ qs('#editorRoot').innerHTML }</body></html>`;
-  try{
-    const converted = window.htmlDocx.asBlob(html);
-    const a = document.createElement('a'); a.href = URL.createObjectURL(converted); a.download = title + '.docx'; a.click();
-    URL.revokeObjectURL(a.href);
-  }catch(e){ alert('Export error: ' + (e.message||e)); }
-});
-
-// ---------- Download PDF (jsPDF) ----------
-qs('#downloadPdfBtn').addEventListener('click', async ()=>{
-  if(!currentProjectId){ toast('Open a project first'); return; }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit:'pt', format:'a4' });
-  const container = document.createElement('div');
-  container.style.width = '800px';
-  container.innerHTML = qs('#editorRoot').innerHTML;
-  document.body.appendChild(container);
-  await doc.html(container, { x:40, y:40, html2canvas: { scale: 1.2 } });
-  doc.save((qs('#projectTitleInput').value||'manuscript') + '.pdf');
-  document.body.removeChild(container);
-});
-
-// ---------- Projects load on start ----------
-window.addEventListener('load', ()=>{
-  renderProjectsGrid();
-  // route to home by default
-  showRoute('home');
-  // load spotify if stored
-  const sp = localStorage.getItem('eunoia_spotify');
-  if(sp) { qs('#spotifyPlayer').src = sp; qs('#spotifyFloat').src = sp; }
-});
-
-// ---------- Back to projects -->
-qs('#backToProjects').addEventListener('click', ()=> showRoute('projects'));
-
-// open project id helper (find first project id if none provided)
-function openFirstProject(){
-  const p = loadProjects()[0];
-  if(p) openProject(p.id);
-  else toast('No projects exist. Create one.');
+// helper
+function updateProjectUpdated(){
+  const p = loadProjects().find(x=> x.id===currentProjectId);
+  $('#projectUpdated').textContent = 'Last saved: ' + (p ? p.updated : '—');
 }
 
-// ---------- quick open by doubleclick on projects grid (already handled) ----------
-
-// ---------- create project by pressing Enter in input -----------
-qs('#newProjectTitle').addEventListener('keypress', (e)=> {
-  if(e.key==='Enter'){ qs('#createProjectBtn').click(); }
+// ---------- editor toolbar (exec commands) ----------
+function exec(cmd, val=null){
+  document.execCommand(cmd, false, val);
+  saveNow(true);
+}
+$$('.tool').forEach(btn => {
+  btn.addEventListener('click', ()=> {
+    const cmd = btn.dataset.cmd;
+    if(cmd==='insertHr') exec('insertHorizontalRule');
+    else if(cmd==='insertImage'){ const url=prompt('Image URL'); if(url) exec('insertImage', url); }
+    else if(cmd) exec(cmd);
+  });
+});
+$('#fontSize').addEventListener('change', e=>{
+  const v = e.target.value; if(!v) return;
+  // wrap current selection in span with font-size
+  exec('fontSize', 7);
+  const el = window.getSelection().anchorNode.parentElement;
+  if(el) el.style.fontSize = v;
+  e.target.value = '';
+});
+$('#heading').addEventListener('change', e=>{
+  const v = e.target.value; if(!v) return exec('formatBlock', v);
+  exec('formatBlock', 'p');
+});
+$('#align').addEventListener('change', e=>{
+  const v = e.target.value; if(!v) return exec(v === 'justify' ? 'justifyFull' : 'justify' + (v==='left'?'Left':v==='center'?'Center':'Right'));
+  e.target.value = '';
+});
+$('#fontColor').addEventListener('change', e => exec('foreColor', e.target.value));
+$('#highlightColor').addEventListener('change', e => exec('hiliteColor', e.target.value));
+$('#fontSelect').addEventListener('change', e=>{
+  const f = e.target.value;
+  // apply font to selection or entire paragraph
+  exec('fontName', f);
 });
 
-// ---------- Load Spotify ----------
-qs('#loadSpotify').addEventListener('click', ()=>{
-  const url = qs('#spotifyUrl').value.trim();
-  if(!url) return toast('Paste a Spotify embed URL or playlist link');
-  // transform to embed if it's a regular open.spotify link
+// ensure Tab inserts spaces
+$('#docCanvas').addEventListener('keydown', (e)=>{
+  if(e.key === 'Tab'){ e.preventDefault(); document.execCommand('insertHTML', false, '&nbsp;&nbsp;&nbsp;&nbsp;'); }
+});
+
+// ---------- TOC generation ----------
+function generateTOC(){
+  const toc = $('#tocList'); if(!toc) return;
+  toc.innerHTML = '';
+  const headings = $('#docCanvas').querySelectorAll('h1,h2,h3');
+  headings.forEach((h, i)=>{
+    const id = h.id || ('h_' + i + '_' + (Math.random().toString(36).slice(2,6)));
+    h.id = id;
+    const btn = document.createElement('button');
+    btn.textContent = h.tagName + ' — ' + h.textContent.slice(0,60);
+    btn.addEventListener('click', ()=> {
+      document.getElementById(id).scrollIntoView({behavior:'smooth', block:'center'});
+    });
+    btn.style.padding = '6px';
+    btn.style.marginBottom = '6px';
+    btn.style.background = 'transparent';
+    btn.style.border = 'none';
+    btn.style.color = '#fff';
+    toc.appendChild(btn);
+  });
+}
+
+// also regenerate on input
+$('#docCanvas').addEventListener('input', ()=> generateTOC());
+
+// ---------- Notes system (per-paragraph simple) ----------
+function getProjectData(){
+  if(!currentProjectId) return null;
+  return loadProjectContent(currentProjectId) || {title:'Untitled', content:'', notes:[], characters:[], plots:[]};
+}
+$('#addNoteBtn').addEventListener('click', ()=>{
+  if(!currentProjectId) return toast('Open a project first');
+  // find focused paragraph (closest ancestor p or h1/h2/h3)
+  const sel = window.getSelection();
+  const node = sel.anchorNode ? sel.anchorNode.parentElement : null;
+  const para = node ? node.closest('p, h1, h2, h3, li') : null;
+  if(!para){ toast('Click a paragraph (or heading) first to attach a note'); return; }
+  const textRef = para.innerText.slice(0,60);
+  const noteText = prompt('Note for this paragraph (will not appear in exports):');
+  if(!noteText) return;
+  const data = getProjectData();
+  const note = { id: uid(), refText: textRef, paraIndex: Array.from($('#docCanvas').children).indexOf(para), content: noteText, created: new Date().toLocaleString() };
+  data.notes = data.notes || [];
+  data.notes.push(note);
+  saveProjectContent(currentProjectId, data);
+  renderNotesList();
+  toast('Note saved');
+});
+
+// render notes list and attach small markers in doc
+function renderNotesList(){
+  const notesDiv = $('#notesList'); notesDiv.innerHTML = '';
+  const data = getProjectData(); if(!data) return;
+  (data.notes || []).forEach(n=>{
+    const pill = document.createElement('div'); pill.className='note-pill';
+    pill.innerHTML = `<strong>${escapeHtml(n.refText)}</strong><small>${escapeHtml(n.content)}</small>`;
+    notesDiv.appendChild(pill);
+  });
+}
+
+// ---------- Reverie (characters + plots) ----------
+function getCharacters(){ const data = getProjectData(); return data ? (data.characters || []) : []; }
+function getPlots(){ const data = getProjectData(); return data ? (data.plots || []) : []; }
+
+function renderCharactersGrid(){
+  const grid = $('#charactersGrid'); if(!grid) return; grid.innerHTML='';
+  const chars = getCharacters();
+  if(chars.length===0){ grid.innerHTML = '<p>No characters yet for this project.</p>'; return; }
+  chars.forEach(c=>{
+    const card = document.createElement('div'); card.className='card';
+    card.innerHTML = `<h4>${escapeHtml(c.name)}</h4><p><small>Role: ${escapeHtml(c.role||'')}</small></p><button data-id="${c.id}" class="editCharBtn">Edit</button>`;
+    grid.appendChild(card);
+  });
+  $$('.editCharBtn').forEach(b => b.addEventListener('click', ()=> editCharacter(b.dataset.id)));
+}
+
+function renderPlotsGrid(){
+  const grid = $('#plotsGrid'); if(!grid) return; grid.innerHTML='';
+  const plots = getPlots();
+  if(plots.length===0){ grid.innerHTML='<p>No plots yet.</p>'; return; }
+  plots.forEach(p=>{
+    const card = document.createElement('div'); card.className='card';
+    card.innerHTML = `<h4>${escapeHtml(p.title)}</h4><p><small>Last edit: ${p.updated||'-'}</small></p><button data-id="${p.id}" class="editPlotBtn">Edit</button>`;
+    grid.appendChild(card);
+  });
+  $$('.editPlotBtn').forEach(b => b.addEventListener('click', ()=> editPlot(b.dataset.id)));
+}
+
+// create character
+$('#createCharacterBtn').addEventListener('click', ()=>{
+  if(!currentProjectId) return toast('Open a project first');
+  const name = $('#newCharacterName').value.trim() || 'Unnamed';
+  const data = getProjectData();
+  data.characters = data.characters || [];
+  const c = { id: uid(), name, physical:'', general:'', internal:'', misbelief:'', desire:'', fear:'', quirks:'', hobbies:'', role:'', song:'', quote:'', created: new Date().toLocaleString() };
+  data.characters.push(c);
+  saveProjectContent(currentProjectId, data);
+  $('#newCharacterName').value='';
+  renderCharactersGrid();
+  editCharacter(c.id);
+});
+
+// edit character
+function editCharacter(id){
+  const data = getProjectData(); if(!data) return;
+  const c = (data.characters||[]).find(x=> x.id===id); if(!c) return;
+  $('#characterEditor').classList.remove('hidden');
+  $('#charEditorTitle').textContent = 'Edit ' + c.name;
+  $('#charName').value = c.name; $('#charSong').value = c.song || '';
+  $('#charPhysical').value = c.physical || ''; $('#charGeneral').value = c.general || '';
+  $('#charInternal').value = c.internal || ''; $('#charMisbelief').value = c.misbelief || '';
+  $('#charDesire').value = c.desire || ''; $('#charFear').value = c.fear || '';
+  $('#charQuirks').value = c.quirks || ''; $('#charHobbies').value = c.hobbies || '';
+  $('#charRole').value = c.role || ''; $('#charQuote').value = c.quote || '';
+
+  // save handler
+  $('#saveCharacterBtn').onclick = ()=> {
+    c.name = $('#charName').value.trim() || c.name; c.song = $('#charSong').value;
+    c.physical = $('#charPhysical').value; c.general = $('#charGeneral').value; c.internal = $('#charInternal').value;
+    c.misbelief = $('#charMisbelief').value; c.desire = $('#charDesire').value; c.fear = $('#charFear').value;
+    c.quirks = $('#charQuirks').value; c.hobbies = $('#charHobbies').value; c.role = $('#charRole').value; c.quote = $('#charQuote').value;
+    saveProjectContent(currentProjectId, data);
+    $('#characterEditor').classList.add('hidden');
+    renderCharactersGrid();
+    toast('Character saved');
+  };
+  $('#cancelCharacterBtn').onclick = ()=> $('#characterEditor').classList.add('hidden');
+}
+
+// create plot
+$('#createPlotBtn').addEventListener('click', ()=>{
+  if(!currentProjectId) return toast('Open a project first');
+  const title = $('#newPlotTitle').value.trim() || 'Untitled Plot';
+  const data = getProjectData(); data.plots = data.plots || [];
+  const p = { id: uid(), title, exposition:'', inciting:'', point1:'', rising:'', midpoint:'', point2:'', climax:'', denouement:'', updated: new Date().toLocaleString() };
+  data.plots.push(p);
+  saveProjectContent(currentProjectId, data);
+  $('#newPlotTitle').value='';
+  renderPlotsGrid();
+  editPlot(p.id);
+});
+
+// edit plot
+function editPlot(id){
+  const data = getProjectData(); if(!data) return;
+  const p = (data.plots||[]).find(x=> x.id===id); if(!p) return;
+  $('#plotEditor').classList.remove('hidden');
+  $('#plotEditorTitle').textContent = 'Edit ' + p.title;
+  $('#plotTitle').value = p.title || '';
+  $('#plotExposition').value = p.exposition || ''; $('#plotInciting').value = p.inciting || ''; $('#plotPoint1').value = p.point1 || '';
+  $('#plotRising').value = p.rising || ''; $('#plotMidpoint').value = p.midpoint || ''; $('#plotPoint2').value = p.point2 || '';
+  $('#plotClimax').value = p.climax || ''; $('#plotDenouement').value = p.denouement || '';
+
+  $('#savePlotBtn').onclick = ()=>{
+    p.title = $('#plotTitle').value || p.title;
+    p.exposition = $('#plotExposition').value; p.inciting = $('#plotInciting').value; p.point1 = $('#plotPoint1').value;
+    p.rising = $('#plotRising').value; p.midpoint = $('#plotMidpoint').value; p.point2 = $('#plotPoint2').value;
+    p.climax = $('#plotClimax').value; p.denouement = $('#plotDenouement').value; p.updated = new Date().toLocaleString();
+    saveProjectContent(currentProjectId, data);
+    $('#plotEditor').classList.add('hidden');
+    renderPlotsGrid();
+    toast('Plot saved');
+  };
+  $('#cancelPlotBtn').onclick = ()=> $('#plotEditor').classList.add('hidden');
+}
+
+// ---------- Spotify load ----------
+$('#loadSpotify').addEventListener('click', ()=> {
+  const url = $('#spotifyUrl').value.trim();
+  if(!url) return toast('Paste a spotify link');
   let embed = url;
-  if(url.includes('open.spotify.com') && !url.includes('embed')) {
-    embed = url.replace('open.spotify.com', 'open.spotify.com/embed');
-  }
-  qs('#spotifyPlayer').src = embed;
-  qs('#spotifyFloat').src = embed;
+  if(url.includes('open.spotify.com') && !url.includes('/embed/')) embed = url.replace('open.spotify.com', 'open.spotify.com/embed');
+  $('#spotifyPlayer').src = embed;
   localStorage.setItem('eunoia_spotify', embed);
-  toast('Spotify loaded — tap play in the player to start audio');
+  toast('Spotify loaded — press play to allow audio');
+});
+window.addEventListener('load', ()=> {
+  const sp = localStorage.getItem('eunoia_spotify'); if(sp) $('#spotifyPlayer').src = sp;
 });
 
-// floating player open/close
-qs('#openSmallPlayer').addEventListener('click', ()=> qs('#floatingPlayer').classList.remove('hidden'));
-qs('#closeFloat').addEventListener('click', ()=> qs('#floatingPlayer').classList.add('hidden'));
-
-// ---------- helper: click project from list (on projects page) ----------
-qs('#projectsGrid').addEventListener('dblclick', e=> {
-  // optional: open first
+// ---------- exports (docx/pdf) ----------
+$('#downloadDocxBtn').addEventListener('click', ()=> {
+  if(!currentProjectId) return toast('Open a project first');
+  const title = ($('#projectTitleInput').value || 'manuscript').replace(/[\\/:*?"<>|]/g,'').trim();
+  const contentHtml = $('#docCanvas').innerHTML;
+  const html = `<html><head><meta charset="utf-8"><title>${title}</title><style>body{font-family:Georgia,serif;padding:40px;color:#111}</style></head><body>${contentHtml}</body></html>`;
+  try{
+    const converted = window.htmlDocx.asBlob(html);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(converted); a.download = title + '.docx'; a.click(); URL.revokeObjectURL(a.href);
+  } catch(e){ alert('Export error: ' + (e.message||e)); }
+});
+$('#downloadPdfBtn').addEventListener('click', async ()=> {
+  if(!currentProjectId) return toast('Open a project first');
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'a4' });
+  const tmp = document.createElement('div'); tmp.style.width='800px'; tmp.innerHTML = $('#docCanvas').innerHTML; document.body.appendChild(tmp);
+  await doc.html(tmp, { x:40, y:40, html2canvas: { scale:1.2 } });
+  doc.save( ($('#projectTitleInput').value||'manuscript') + '.pdf' );
+  document.body.removeChild(tmp);
 });
 
-// ---------- Make sure editor retains paragraphs when pasting plain text ----------
-qs('#editorRoot').addEventListener('paste', function(e){
-  e.preventDefault();
-  const text = (e.clipboardData || window.clipboardData).getData('text');
-  // preserve line breaks -> paragraphs
-  const html = text.split(/\r?\n/).map(s => '<p>'+escapeHtml(s)+'</p>').join('');
-  document.execCommand('insertHTML', false, html);
+// ---------- UX: create project on Enter ----------
+$('#newProjectTitle').addEventListener('keypress', (e)=> { if(e.key==='Enter') $('#createProjectBtn').click(); });
+
+// ---------- utilities ----------
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]); }
+
+// ---------- Startup ----------
+window.addEventListener('load', ()=> {
+  renderProjectsGrid();
+  showRoute('home');
+  // quick: open first project if you want
+  const sp = localStorage.getItem('eunoia_spotify'); if(sp) $('#spotifyPlayer').src = sp;
 });
