@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>eunoia</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- small libs used for export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html-docx-js/0.4.0/html-docx.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="top-left">
+      <a class="brand" data-route="home">eunoia</a>
+      <nav class="tabs">
+        <button class="tabbtn" data-route="home">home</button>
+        <button class="tabbtn" data-route="projects">logastellus</button>
+        <button class="tabbtn" data-route="reverie">reverie</button>
+        <button class="tabbtn" data-route="posts">stellaviva</button>
+        <button class="tabbtn" data-route="melomanie">melomanie</button>
+      </nav>
+    </div>
+    <div class="top-right">
+      <span id="saveIndicator" class="save-ind">saved</span>
+      <button id="downloadDocxBtn" class="mini">Download .docx</button>
+      <button id="downloadPdfBtn" class="mini">Download .pdf</button>
+    </div>
+  </header>
+
+  <main id="app">
+    <!-- HOME -->
+    <section id="view-home" class="view">
+      <div class="dash-center">
+        <h1 class="dash-title">eunoia</h1>
+        <div class="dash-actions">
+          <button class="dash-cta" data-route="projects">logastellus</button>
+          <button class="dash-cta" data-route="reverie">reverie</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROJECTS -->
+    <section id="view-projects" class="view hidden">
+      <div class="projects-header">
+        <h2>logastellus — projects</h2>
+        <div class="proj-controls">
+          <input id="newProjectTitle" placeholder="New project title" />
+          <button id="createProjectBtn">+ New Project</button>
+        </div>
+      </div>
+      <div id="projectsGrid" class="projects-grid"></div>
+    </section>
+
+    <!-- EDITOR (logastellus) -->
+    <section id="view-editor" class="view hidden">
+      <div class="editor-wrap">
+        <!-- left pane -->
+        <aside class="editor-left-pane">
+          <button id="backToProjects" class="ghost">← back</button>
+          <div class="meta">
+            <input id="projectTitleInput" placeholder="Untitled project" />
+            <div class="meta-row"><small id="projectUpdated">Last saved: —</small></div>
+          </div>
+
+          <div class="toc-box">
+            <h4>Outline</h4>
+            <div id="tocList" class="toc-list">Add H1/H2/H3 headings to build outline</div>
+          </div>
+
+          <div class="project-list-mini">
+            <h4>Your projects</h4>
+            <div id="miniProjects"></div>
+          </div>
+        </aside>
+
+        <!-- main editor -->
+        <section class="editor-mainpane">
+          <div class="toolbar" id="toolbar" role="toolbar">
+            <select id="fontSelect" title="Font">
+              <option value="Poor Story">Poor Story</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Lora">Lora</option>
+              <option value="EB Garamond">EB Garamond</option>
+              <option value="Inter">Inter</option>
+            </select>
+
+            <select id="fontSize">
+              <option value="">Size</option>
+              <option value="14px">14</option>
+              <option value="16px" selected>16</option>
+              <option value="18px">18</option>
+              <option value="20px">20</option>
+            </select>
+
+            <button class="tool" data-cmd="bold" title="Bold"><b>B</b></button>
+            <button class="tool" data-cmd="italic" title="Italic"><i>I</i></button>
+            <button class="tool" data-cmd="underline" title="Underline"><u>U</u></button>
+            <button class="tool" data-cmd="strike" title="Strike"><s>S</s></button>
+
+            <button class="tool" data-cmd="insertUnorderedList" title="Bulleted list">• List</button>
+            <button class="tool" data-cmd="insertOrderedList" title="Numbered list">1. List</button>
+
+            <select id="heading" title="Heading">
+              <option value="">Normal</option>
+              <option value="h1">Heading 1</option>
+              <option value="h2">Heading 2</option>
+              <option value="h3">Heading 3</option>
+            </select>
+
+            <select id="align" title="Align">
+              <option value="">Align</option>
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+              <option value="justify">Justify</option>
+            </select>
+
+            <input type="color" id="fontColor" title="Text color" />
+            <input type="color" id="highlightColor" title="Highlight" />
+
+            <button class="tool" id="addNoteBtn" title="Add Note">Add Note</button>
+            <button class="tool" data-cmd="insertHr" title="HR">—</button>
+            <button class="tool" data-cmd="insertImage" title="Image">Image</button>
+            <button class="tool" data-cmd="undo" title="Undo">↶</button>
+            <button class="tool" data-cmd="redo" title="Redo">↷</button>
+          </div>
+
+          <!-- google-docs style centered page -->
+          <div id="docCanvasWrap">
+            <div id="docCanvas" class="doc-canvas" contenteditable="true" aria-multiline="true">
+              <h1>Start your story</h1>
+              <p>Type here — use the toolbar. Press Enter for paragraph; Tab inserts indent.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- right: notes -->
+        <aside class="editor-right-pane">
+          <h4>Notes</h4>
+          <div id="notesList" class="notes-list"></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- REVERIE -->
+    <section id="view-reverie" class="view hidden">
+      <div class="reverie-home">
+        <h2>reverie</h2>
+        <div class="rev-actions">
+          <button class="rev-btn" id="revCharBtn" data-rev="characters">Characters</button>
+          <button class="rev-btn" id="revPlotBtn" data-rev="plots">Plots</button>
+        </div>
+      </div>
+
+      <div id="reverie-characters" class="rev-section hidden">
+        <div class="rev-header">
+          <h3>Characters (project-scoped)</h3>
+          <input id="newCharacterName" placeholder="New character name" />
+          <button id="createCharacterBtn">+ Create</button>
+        </div>
+        <div id="charactersGrid" class="characters-grid"></div>
+
+        <div id="characterEditor" class="card hidden">
+          <h4 id="charEditorTitle">Edit Character</h4>
+          <input id="charName" placeholder="Character Name" />
+          <input id="charSong" placeholder="Song that describes them" />
+          <textarea id="charPhysical" placeholder="Physical Description"></textarea>
+          <textarea id="charGeneral" placeholder="General Description"></textarea>
+          <textarea id="charInternal" placeholder="Internal Conflict"></textarea>
+          <textarea id="charMisbelief" placeholder="Misbelief"></textarea>
+          <textarea id="charDesire" placeholder="Desire"></textarea>
+          <textarea id="charFear" placeholder="Fear"></textarea>
+          <textarea id="charQuirks" placeholder="Quirks"></textarea>
+          <textarea id="charHobbies" placeholder="Hobbies"></textarea>
+          <input id="charRole" placeholder="Role in the story" />
+          <input id="charQuote" placeholder="Quote they live by" />
+          <div class="card-actions">
+            <button id="saveCharacterBtn">Save</button>
+            <button id="cancelCharacterBtn">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="reverie-plots" class="rev-section hidden">
+        <div class="rev-header">
+          <h3>Plots (project-scoped)</h3>
+          <input id="newPlotTitle" placeholder="New plot title" />
+          <button id="createPlotBtn">+ Create Plot</button>
+        </div>
+        <div id="plotsGrid" class="plots-grid"></div>
+
+        <div id="plotEditor" class="card hidden">
+          <h4 id="plotEditorTitle">Edit Plot</h4>
+          <input id="plotTitle" placeholder="Plot Title" />
+          <h5>Act 1 — Setup</h5>
+          <textarea id="plotExposition" placeholder="Exposition"></textarea>
+          <textarea id="plotInciting" placeholder="Inciting Incident"></textarea>
+          <textarea id="plotPoint1" placeholder="Plot Point One"></textarea>
+          <h5>Act 2 — Confrontation</h5>
+          <textarea id="plotRising" placeholder="Rising Action"></textarea>
+          <textarea id="plotMidpoint" placeholder="Midpoint"></textarea>
+          <textarea id="plotPoint2" placeholder="Plot Point Two"></textarea>
+          <h5>Act 3 — Resolution</h5>
+          <textarea id="plotClimax" placeholder="Climax"></textarea>
+          <textarea id="plotDenouement" placeholder="Denouement"></textarea>
+          <div class="card-actions">
+            <button id="savePlotBtn">Save</button>
+            <button id="cancelPlotBtn">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- POSTS -->
+    <section id="view-posts" class="view hidden">
+      <div class="posts-wrap">
+        <h2>stellaviva</h2>
+        <article class="post-card">
+          <h3>Welcome to Stellaviva</h3>
+          <p class="meta">A space for thoughts on writing, process, and the rituals that help us create.</p>
+          <div class="post-body">
+            <p>Welcome — this placeholder is your first post.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- MELOMANIE -->
+    <section id="view-melomanie" class="view hidden">
+      <div class="melomanie-wrap">
+        <h2>melomanie</h2>
+        <p class="meta">Paste a Spotify embed link (or playlist URI) and Load. Then press Play inside the player to allow sound.</p>
+        <input id="spotifyUrl" placeholder="https://open.spotify.com/playlist/..." />
+        <div class="melomanie-controls"><button id="loadSpotify">Load playlist</button></div>
+        <div class="spotify-container"><iframe id="spotifyPlayer" src="" frameborder="0" allow="encrypted-media" allowtransparency="true"></iframe></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
